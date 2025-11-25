@@ -1,0 +1,249 @@
+--@name Orb Speaker
+--@author JurAFul
+--@client
+--@model models/bull/dynamicbutton.mdl
+
+--_____________________________________________________________________________________________________________________________________________--
+chip():setColor(Color(255,0,0))
+setName('Push to skip song')
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Starting Pos & Volume controls
+--_____________________________________________________________________________________________________________________________________________--
+local Song = 1
+local Volume = 0.5
+local FadeMax = 700
+local FadeMin = 400
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Tables
+--_____________________________________________________________________________________________________________________________________________--
+-- URL Table, make sure to replace "www." with "dl." and give any URL that isn't final a comma at the end.
+URLTable = {
+    "https://dl.dropbox.com/scl/fi/2qh5ec9ax69c0mse48i22/Glitz-At-The-Ritz-4.mp3?rlkey=zg8banwur594yo9pzyzpt86xi&st=w8zmaabc&dl=0"
+    }
+    
+    
+-- Name Table, for the popup text prompt. Same numbering as URLs above, order does matter and lack of text prompt will have nothing show.
+NameTable = {
+
+    "1. Glitz at the ritz",
+
+    }
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Spawner, spawns the Orb and Speaker cosmetic
+--_____________________________________________________________________________________________________________________________________________--
+local Orb = hologram.create(chip():getPos(), Angle(0,0,0), 'models/sprops/geometry/sphere_12.mdl', Vector(1,1,1))
+Orb:setMaterial('models/debug/debugwhite')
+Orb:setColor(Color(0,0,0,255))
+
+local Orbhat = hologram.create(chip():getPos() + Vector(5,0,0),Angle(90,0,0), 'models/cheeze/wires/speaker.mdl', Vector(1,1,1))
+Orbhat:setParent(Orb)
+
+local Orbhat2 = hologram.create(chip():getPos() + Vector(-5,0,0),Angle(-90,0,0), 'models/cheeze/wires/speaker.mdl', Vector(1,1,1))
+Orbhat2:setParent(Orb)
+
+local Orbhat3 = hologram.create(chip():getPos() + Vector(0,-5,0),Angle(90,-90,0), 'models/cheeze/wires/speaker.mdl', Vector(1,1,1))
+Orbhat3:setParent(Orb)
+
+local Orbhat4 = hologram.create(chip():getPos() + Vector(0,5,0),Angle(-90,-90,0), 'models/cheeze/wires/speaker.mdl', Vector(1,1,1))
+Orbhat4:setParent(Orb)
+
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Global Vars
+--_____________________________________________________________________________________________________________________________________________--
+local URL 
+
+local Target
+
+local Length
+
+local Bob = 0
+
+local Bit = 0
+
+for k, v in pairs(URLTable) do
+    if k == Song then
+        URL = v
+    end
+end
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Bass loader
+--_____________________________________________________________________________________________________________________________________________--
+for f, g in pairs(NameTable) do
+    if f == Song then
+        printMessage(4,g)
+    end
+end
+
+-- Starter URL
+bass.loadURL(URL,"3d noplay noblock", function( x )
+    snd = x
+    snd:setPos(owner():getPos())
+    snd:setVolume(Volume)
+    snd:setLooping(false)
+    snd:setFade(FadeMin, FadeMax)
+    snd:play()
+    
+-- Error protection
+    if snd != nil then
+        Length = snd:getLength()
+    else
+        timer.create('DelayInt',0.5,1,function()
+            Length = snd:getLength()
+        end)
+    end
+    
+-- Consecutive Bass loading
+    timer.create('Play',Length + 1,0,function()
+           
+        if Song >= table.maxn(URLTable) then
+            Song = 1
+        else
+            Song = (Song+1)
+        end
+        
+        
+        for k, v in pairs(URLTable) do
+            if k == Song then
+            URL = v
+            end
+        end
+        
+        for f, g in pairs(NameTable) do
+            if f == Song then
+                printMessage(4,g)
+            end
+        end
+        
+        
+        bass.loadURL(URL,"3d noplay noblock", function( x )
+            snd = x
+            snd:setPos(owner():getPos())
+            snd:setVolume(Volume)
+            snd:setLooping(false)
+            snd:setFade(FadeMin, FadeMax)
+            snd:play()
+            Length = snd:getLength()
+            timer.adjust('Play', Length + 1)
+            hook.add( "Think", "x", function(x)
+                snd:setPos(Orb:getPos()) 
+            end)
+        end)
+    end)
+    
+    
+-- Skipping, press E on chip
+    hook.add('StarfallUsed', 'skip', function( m )
+            
+        if  snd:isValid() and snd:isPlaying() then
+        
+            snd:stop()
+                    
+            if Song >= table.maxn(URLTable) then
+                    Song = 1
+            else
+                    Song = (Song+1)
+            end
+                        
+                        
+            for k, v in pairs(URLTable) do
+                if k == Song then
+                    URL = v
+                end
+            end
+                        
+            for f, g in pairs(NameTable) do
+                if f == Song then
+                    printMessage(4,g)
+                end
+            end
+        
+                       
+            bass.loadURL(URL,"3d noplay noblock", function( x )
+                snd = x
+                snd:setPos(owner():getPos())
+                snd:setVolume(Volume)
+                snd:setLooping(false)
+                snd:setFade(FadeMin, FadeMax)
+                snd:play()
+                Length = snd:getLength()
+                timer.adjust('Play', Length + 1)
+                hook.add( "Think", "x", function(x)
+                    if snd:isValid() then
+                        snd:setPos(Orb:getPos()) 
+                    end
+                end)
+            end)
+        end
+        timer.adjust('removal', Length + 2)
+    end)
+    
+    timer.create('removal',5,0,function()
+        if snd:isPlaying() == false then
+            snd:stop()
+        end
+        
+        timer.adjust('removal', Length + 2)
+    end)    
+    
+    hook.add('Think','movemento',function()
+        if snd:isValid() then
+            snd:setPos(Orb:getPos()) 
+        end
+    end)
+end)
+--_____________________________________________________________________________________________________________________________________________--
+
+
+-- Movement and respawning
+--_____________________________________________________________________________________________________________________________________________--
+hook.add("Think", "Pos", function()
+
+-- Math
+    if Bob < 1 and Bit == 0 then
+        Bob = Bob + 0.005
+    elseif Bob != 0 and Bit == 0 then
+        Bit = 1
+        Bob = Bob - 0.005
+    elseif Bob > 0 and Bit == 1 then
+        Bob = Bob - 0.005
+    elseif Bob <= 0 and Bit == 1 then
+        Bit = 0
+        Bob = Bob + 0.005
+    end
+
+-- Respawner (Fuck you Toby)
+    if not isValid(Orb) then
+        Orb = hologram.create(chip():getPos(), Angle(0,0,0), 'models/sprops/geometry/sphere_12.mdl', Vector(1,1,1))
+        Orb:setMaterial('models/debug/debugwhite')
+        Orb:setColor(Color(0,0,0,255))
+    end
+    
+    if not isValid(Orbhat) then
+        Orbhat = hologram.create(chip():getPos() + Vector(2,0,0),Angle(90,0,0), 'models/cheeze/wires/speaker.mdl', Vector(1,1,1))
+        Orbhat:setParent(Orb)
+    end
+    
+    if not isValid(Orbhat2) then
+        Orbhat2 = hologram.create(chip():getPos() + Vector(2,0,0),Angle(-90,0,0), 'models/cheeze/wires/speaker.mdl', Vector(-1,-1,-1))
+        Orbhat2:setParent(Orb)
+    end
+    
+    
+-- Position/Rotation setter
+    
+    Orb:setPos(math.lerpVector(0.08,Orb:getPos(),owner():getEyePos()+(owner():getRight())+Vector(0,0,30+math.lerp(Bob,0,2))))
+    Orb:setAngles(math.lerpAngle(0.08,Orb:getAngles(),Orb:getAngles() + Angle(0,2,0)))
+    
+    
+end)
+--_____________________________________________________________________________________________________________________________________________--
